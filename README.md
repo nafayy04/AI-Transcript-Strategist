@@ -1,5 +1,6 @@
 # 🎓 AI Transcript Strategist 
-<img width="1511" height="872" alt="image" src="https://github.com/user-attachments/assets/e0c3049f-c326-4c4d-859d-a2b6cd2251d9" />
+<img width="1517" height="691" alt="image" src="https://github.com/user-attachments/assets/e2b6bf31-d857-4ec3-a3d3-0f2b49ca3a7f" />
+
 
 An intelligent, multi-modal academic advising agent that automates transcript analysis, GPA calculation, and strategic course planning.
 
