@@ -1,0 +1,281 @@
+{
+  "name": "gpa-agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "gpa-agent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "c14b9b7c-a14c-4a7d-9a5e-e38ae2e96483",
+      "name": "Webhook",
+      "webhookId": "5188efe1-90bb-4a6e-8714-691d1a403ddb"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "345841d5-ceb0-48c0-9f9f-01c24eb07fdb",
+              "leftValue": "={{ $json.needsEscalation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "id": "85c94eeb-20fe-4fd7-b8b3-89072c64fe2d",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"model\": \"llama-3.1-8b-instant\",\n    \"messages\": [\n      {\n        \"role\": \"system\",\n        \"content\": \"You are a friendly Pakistani university academic advisor. Give clear, helpful advice in simple English. Be encouraging but realistic.\"\n      },\n      {\n        \"role\": \"user\",\n        \"content\": `Student: ${$json.studentName}\\nSemester GPA: ${$json.semesterGpa}\\nOverall CGPA: ${$json.cgpa}\\nStanding: ${$json.standing}\\nImprovement Scenarios: ${$json.detailedScenarios}\\n\\nGive a 3-4 line encouraging analysis of their overall academic standing. Acknowledge their CGPA. Suggest 2-3 specific actionable tips to maintain or improve their grades, keeping their improvement scenarios in mind. Keep it warm and practical.`\n      }\n    ],\n    \"max_tokens\": 400\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        96
+      ],
+      "id": "746e893c-193e-4193-a0a2-0cbc71d07f80",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "EGZa91HQWAyYnALg",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"model\": \"llama-3.1-8b-instant\",\n    \"messages\": [\n      {\n        \"role\": \"system\",\n        \"content\": \"You are a Pakistani university academic advisor. Be empathetic but direct about serious academic situations.\"\n      },\n      {\n        \"role\": \"user\",\n        \"content\": `ESCALATION CASE\\nStudent: ${$json.studentName}\\nOverall CGPA: ${$json.cgpa}\\nStanding: ${$json.standing}\\nFailed Courses: ${$json.failedCourses ? $json.failedCourses.join(', ') : 'None'}\\nImprovement Scenarios: ${$json.detailedScenarios}\\n\\nGenerate:\\n1. A clear explanation of their current CGPA situation (2 lines)\\n2. Immediate steps they must take, including targeting specific courses mentioned in the scenarios to boost CGPA (3 bullet points)\\n3. A professional email draft they can send to their academic advisor requesting an urgent meeting.\\n\\nFormat with clear sections.`\n      }\n    ],\n    \"max_tokens\": 600\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "b77057d5-158b-4aec-ac49-1d251981c896",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "EGZa91HQWAyYnALg",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const calcData = $('Code').item.json;\nconst groqResponse = $input.first().json;\nconst aiAdvice = groqResponse.choices[0].message.content;\n\n// FIXED: Passed detailedScenarios for the escalation path as well\nreturn [{\n  json: {\n    status: \"escalation_required\",\n    escalation: true,\n    student: calcData.studentName,\n    semesterGpa: calcData.semesterGpa,\n    cgpa: calcData.cgpa,\n    detailedScenarios: calcData.detailedScenarios, // <--- THE MAGIC LINE\n    standing: calcData.standing,\n    courses: calcData.courseResults,\n    failedCourses: calcData.failedCourses,\n    escalationReason: calcData.escalationReason,\n    aiAdvice: aiAdvice,\n    message: \"Your case needs advisor attention. Email draft included below.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "1721a19c-db7c-4619-b454-14bf5c1c28e1",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const calcData = $('Code').item.json;\nconst groqResponse = $input.first().json;\nconst aiAdvice = groqResponse.choices[0].message.content;\n\n// FIXED: Now detailedScenarios is correctly passed from math engine to python\nreturn [{\n  json: {\n    status: \"success\",\n    escalation: false,\n    student: calcData.studentName,\n    semesterGpa: calcData.semesterGpa,\n    cgpa: calcData.cgpa,\n    detailedScenarios: calcData.detailedScenarios, // <--- YEH LINE LAZMI HONI CHAHIYE\n    standing: calcData.standing,\n    courses: calcData.courseResults,\n    failedCourses: calcData.failedCourses,\n    aiAdvice: aiAdvice,\n    message: \"Analysis complete. No escalation needed.\"\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        96
+      ],
+      "id": "edfbcd83-8ae2-4131-b302-2eaf8c16a3dc",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        0
+      ],
+      "id": "0d863128-90d1-465d-b7c7-1cbbc93ac1ca",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1344,
+        0
+      ],
+      "id": "a4ffd4fa-6759-4496-a729-291c70239281",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const rawData = $input.first().json;\nconst body = rawData.body || rawData;\n\nconst studentName    = body.name || \"Student\";\nconst pastCgpa       = parseFloat(body.pastCgpa) || 0;\nconst pastCredits    = parseFloat(body.pastCredits) || 0;\nconst pastCourses    = body.pastCourses || [];\nconst currentCourses = body.currentCourses || [];\n\nif (currentCourses.length === 0 && pastCourses.length === 0) {\n  return [{ json: { error: \"No data provided.\" } }];\n}\n\nfunction getGradeFromMarks(marks) {\n  if (marks >= 85) return { grade: \"A\",  points: 4.0  };\n  if (marks >= 80) return { grade: \"A-\", points: 3.7  };\n  if (marks >= 75) return { grade: \"B+\", points: 3.33 };\n  if (marks >= 71) return { grade: \"B\",  points: 3.0  };\n  if (marks >= 68) return { grade: \"B-\", points: 2.7  };\n  if (marks >= 64) return { grade: \"C+\", points: 2.33 };\n  if (marks >= 60) return { grade: \"C\",  points: 2.0  };\n  if (marks >= 57) return { grade: \"C-\", points: 1.7  };\n  if (marks >= 53) return { grade: \"D+\", points: 1.33 };\n  if (marks >= 50) return { grade: \"D\",  points: 1.0  };\n  return { grade: \"F\", points: 0.0 };\n}\n\nconst gradeHierarchy = [\n  { grade: \"D\",  points: 1.0  }, { grade: \"D+\", points: 1.33 },\n  { grade: \"C-\", points: 1.7  }, { grade: \"C\",  points: 2.0  },\n  { grade: \"C+\", points: 2.33 }, { grade: \"B-\", points: 2.7  },\n  { grade: \"B\",  points: 3.0  }, { grade: \"B+\", points: 3.33 },\n  { grade: \"A-\", points: 3.7  }, { grade: \"A\",  points: 4.0  }\n];\n\nconst WEAK_GRADES = [\"F\",\"D-\",\"D\",\"D+\",\"C-\",\"C\",\"C+\"];\n\nlet semWtdPts = 0, semCredits = 0;\nlet failedCourses = [], courseResults = [], improvable = [];\n\nfor (const c of pastCourses) {\n  const { grade, points } = getGradeFromMarks(parseFloat(c.marks));\n  const cr = parseFloat(c.credits);\n  if (WEAK_GRADES.includes(grade)) {\n    improvable.push({ name: c.name + \" (Past)\", credits: cr, currentGrade: grade, currentPoints: points });\n  }\n}\n\nfor (const c of currentCourses) {\n  const marks = parseFloat(c.marks);\n  const cr    = parseFloat(c.credits);\n  const { grade, points } = getGradeFromMarks(marks);\n  semWtdPts  += points * cr;\n  semCredits += cr;\n  if (grade === \"F\") failedCourses.push(c.name);\n  if (WEAK_GRADES.includes(grade)) {\n    improvable.push({ name: c.name + \" (Current)\", credits: cr, currentGrade: grade, currentPoints: points });\n  }\n  courseResults.push({ name: c.name, credits: cr, grade, points });\n}\n\nconst semGpa         = semCredits > 0 ? semWtdPts / semCredits : 0;\nconst oldPts         = pastCgpa * pastCredits;\nconst basePts        = oldPts + semWtdPts;\nconst totalCr        = pastCredits + semCredits;\nconst cgpa           = totalCr > 0 ? basePts / totalCr : (pastCgpa || 0);\n\nlet scenarios = \"\";\nif (improvable.length > 0) {\n  let totalMaxExtra = 0;\n  for (const c of improvable) {\n    scenarios += \"If you improve \" + c.name + \" (\" + c.currentGrade + \"):\\n\";\n    let maxExtra = 0;\n    for (const g of gradeHierarchy) {\n      if (g.points > c.currentPoints) {\n        const extra   = (g.points - c.currentPoints) * c.credits;\n        const newCgpa = ((basePts + extra) / totalCr).toFixed(2);\n        scenarios    += \"  \" + g.grade + \" -> CGPA: \" + newCgpa + \"\\n\";\n        maxExtra      = extra;\n      }\n    }\n    scenarios   += \"\\n\";\n    totalMaxExtra += maxExtra;\n  }\n  const maxPot = ((basePts + totalMaxExtra) / totalCr).toFixed(2);\n  scenarios += \"MAX POTENTIAL (all improved to A): CGPA \" + maxPot;\n} else {\n  scenarios = \"No weak grades found. Excellent standing!\";\n}\n\nlet standing = \"\", needsEscalation = false;\nif      (cgpa >= 3.5) standing = \"DISTINCTION\";\nelse if (cgpa >= 3.0) standing = \"GOOD STANDING\";\nelse if (cgpa >= 2.0) standing = \"SATISFACTORY\";\nelse { standing = \"PROBATION\"; needsEscalation = true; }\nif (failedCourses.length > 0) needsEscalation = true;\n\nconst escalationReason = needsEscalation\n  ? \"CGPA \" + cgpa.toFixed(2) + \" (\" + standing + \")\" + (failedCourses.length > 0 ? \" | Failed: \" + failedCourses.join(\", \") : \"\")\n  : \"\";\n\nreturn [{\n  json: {\n    studentName,\n    cgpa:             cgpa.toFixed(2),\n    semesterGpa:      semGpa.toFixed(2),\n    standing,\n    courseResults,\n    failedCourses,\n    detailedScenarios: scenarios,\n    needsEscalation,\n    escalationReason\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7503b560-4ff1-4077-b63c-fa142614bfc7",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a949a8e6-fbdc-4217-af45-f62a948229ba",
+  "meta": {
+    "instanceId": "b356c85420e084b3f442b20df5845219177425bc61973820bc3634efa0437052"
+  },
+  "id": "WQ6VYxicHsusQkOK",
+  "tags": []
+}
